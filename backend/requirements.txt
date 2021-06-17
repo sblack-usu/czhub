@@ -1,0 +1,11 @@
+pandas
+aiofiles
+authlib
+bs4
+httpx
+fastapi
+uvicorn
+requests
+requests-oauthlib
+itsdangerous
+hsclient
