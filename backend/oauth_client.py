@@ -1,4 +1,5 @@
 import time
+import typing
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.security import OAuth2PasswordBearer
@@ -12,7 +13,7 @@ app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
-config = Config('config/.env')
+config = Config('/app/config/.env')
 oauth = OAuth(config)
 oauth.register(name='hydroshare',
                authorize_url="https://www.hydroshare.org/o/authorize/",
@@ -28,6 +29,13 @@ oauth.register(name='zenodo',
                access_token_params={'grant_type': 'client_credentials', 'scope': 'deposit:write deposit:actions',
                                     'client_id': config.get('ZENODO_CLIENT_ID'),
                                     'client_secret': config.get('ZENODO_CLIENT_SECRET')})
+
+outside_host = "localhost"
+
+def _url_for(name: str, **path_params: typing.Any) -> str:
+    url_path = app.router.url_path_for(name, **path_params)
+    # TOOD - get the parent router path instead of hardcoding /api
+    return "http://{}/api{}".format(outside_host, url_path)
 
 def _access_token(request: Request, repository: str):
     orcid = request.session.get('orcid')
@@ -49,7 +57,7 @@ def home(request: Request):
 
 @app.route('/login')
 async def login(request: Request):
-    redirect_uri = request.url_for('auth')
+    redirect_uri = _url_for('auth')
     if 'X-Forwarded-Proto' in request.headers:
         redirect_uri = redirect_uri.replace('http:', request.headers['X-Forwarded-Proto'] + ':')
     return await oauth.orcid.authorize_redirect(request, redirect_uri)
@@ -66,7 +74,7 @@ async def authorize_repository(repository: str, request: Request):
     orcid = request.session.get('orcid')
     if not orcid:
         return RedirectResponse("/login")
-    redirect_uri = request.url_for('auth_repository', repository=repository)
+    redirect_uri = _url_for('auth_repository', repository=repository)
     return await getattr(oauth, repository).authorize_redirect(request, redirect_uri)
 
 
@@ -82,7 +90,7 @@ async def auth(request: Request):
     else:
         db[token['orcid']] = {"name": token['name'], 'access_token': token['access_token']}
     request.session['orcid'] = token['orcid']
-    return RedirectResponse(url='/')
+    return RedirectResponse(url='/api')
 
 
 @app.get("/auth/{repository}")
@@ -96,4 +104,4 @@ async def auth_repository(request: Request, repository: str):
     if not orcid:
         raise HTTPException(status_code=400, detail="No logged in with an orcid, cannot authorize hydroshare")
     db[orcid][repository] = token
-    return RedirectResponse(url='/')
+    return RedirectResponse(url='/api')
