@@ -9,3 +9,5 @@ requests
 requests-oauthlib
 itsdangerous
 hsclient
+psycopg2-binary
+SQLAlchemy
