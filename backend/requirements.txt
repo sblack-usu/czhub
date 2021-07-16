@@ -11,3 +11,6 @@ itsdangerous
 hsclient
 psycopg2-binary
 SQLAlchemy
+pytest
+fastapi-users[sqlalchemy]
+alembic
